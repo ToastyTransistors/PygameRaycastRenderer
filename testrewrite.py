@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pygame
 import time
+import math
 from pygame.locals import *
 
 pygame.init()
@@ -9,6 +10,8 @@ vec = pygame.math.Vector2
 WIDTH:int = 640
 HEIGHT:int = 480
 FPS:float = 60
+SPEED:float = .05
+ROTSPEED:float = .025
 
 MAPWIDTH:int  = 24
 MAPHEIGHT:int = 24
@@ -48,6 +51,22 @@ def color(c):
         4 : (255, 255, 255)
         }.get(c, (255, 255, 0))
 
+def dcolor(c):
+    return{
+        1 : (127, 0, 0),
+        2 : (0, 127, 0),
+        3 : (0, 0, 127),
+        4 : (127, 127, 127)
+        }.get(c, (127, 127, 0))
+
+def angle(a):
+    return{
+        -1 : math.cos(-ROTSPEED),
+        -2 : math.sin(-ROTSPEED),
+        1 : math.cos(ROTSPEED),
+        2 : math.sin(ROTSPEED)
+        }.get(a, None)
+
 FramePerSec = pygame.time.Clock()
 
 displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -62,7 +81,13 @@ planeY:float = 0.66
 
 done = False
 
+
+
 while not done:
+    
+    pygame.mouse.set_visible(False)
+    #pygame.mouse.set_pos(WIDTH/2, HEIGHT/2)
+    pygame.event.set_grab(True)
     
     event = pygame.event.poll()
     
@@ -134,6 +159,9 @@ while not done:
         else:
             perpwalldist = (mapY - posY + (1 - stepY) / 2) / raydirY
             
+        if perpwalldist <= 0:
+            perpwalldist = 1
+            
         lineheight:int = HEIGHT / perpwalldist
         
         drawstart:int = -lineheight / 2 + HEIGHT / 2
@@ -145,13 +173,42 @@ while not done:
             drawend = HEIGHT - 1
             
         c = color(WORLDMAP[mapX][mapY])
+        if side:
+            c = dcolor(WORLDMAP[mapX][mapY])
         
         pygame.draw.line(displaysurface, c, (x, drawstart), (x, drawend))
     pygame.display.flip()
     
     pressed_keys = pygame.key.get_pressed()
     
-    if pressed_keys[K_UP]:
-        if not WORLDMAP[int(posX + dirX * .5)][int(posY)]:
-            posX += dirX * .5
+    delta_mouse_x, delta_mouse_y = pygame.mouse.get_rel()
+    
+    if pressed_keys[K_w]:
+        if not WORLDMAP[int(posX + dirX * SPEED)][int(posY)]:
+            posX += dirX * SPEED
+        if not WORLDMAP[int(posX)][int(posY + dirY * SPEED)]:
+            posY += dirY * SPEED
+    elif pressed_keys[K_s]:
+        if not WORLDMAP[int(posX - dirX * SPEED)][int(posY)]:
+            posX -= dirX * SPEED
+        if not WORLDMAP[int(posX)][int(posY - dirY * SPEED)]:
+            posY -= dirY * SPEED
+            
+    if delta_mouse_x < 0:
+        olddirX:float = dirX
+        dirX = planeY * angle(-1) - dirY * angle(-2)
+        dirY = olddirX * angle(-2) + dirY * angle(-1)
+        oldplaneX:float = planeX
+        planeX = planeX * angle(-1) - planeY * angle(-2)
+        planeY = oldplaneX * angle(-2) + planeY * angle(-1)
+    elif delta_mouse_x > 0:
+        olddirX:float = dirX
+        dirX = dirX * angle(1) - dirY * angle(2)
+        dirY = olddirX * angle(2) + dirY * angle(1)
+        oldplaneX:float = planeX
+        planeX = planeX * angle(1) - planeY * angle(2)
+        planeY = oldplaneX * angle(2) + planeY * angle(1)
+            
+    if pressed_keys[K_ESCAPE]:
+        done = True
 pygame.quit()
